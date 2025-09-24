@@ -304,6 +304,8 @@ def extract_items(text, format_type):
         # Banking & Payment Info
         data["Bank Name"] =  re.search(r"Name:\s*(.+)\s+Packing List", text)
 
+        clean_address = None  
+
         # Extract raw block between Address and City
         match = re.search(r"Address:\s*(.*?)\s*City:", text, re.S)
         if match:
@@ -363,7 +365,8 @@ def extract_items(text, format_type):
     return data
 
 # Load Tika URL from .env
-TIKA_URL = os.getenv("TIKA_URL", "http://localhost:9998/tika") 
+TIKA_URL = TIKA_URL = os.getenv("TIKA_URL")
+
 
 # -------------------
 # Helper to call Tika

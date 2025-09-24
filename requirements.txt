@@ -1,0 +1,6 @@
+streamlit
+tika==2.9.0
+requests
+python-dotenv
+pandas
+openpyxl

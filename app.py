@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from openpyxl import load_workbook
 import pandas as pd
-from tika import parser
+
 
 # Load environment variables
 load_dotenv()
@@ -368,18 +368,13 @@ TIKA_URL = os.getenv("TIKA_URL", "http://localhost:9998/tika")
 # -------------------
 # Helper to call Tika
 # -------------------
-
-
 def extract_text_from_file(file):
-    """
-    Extract text from uploaded file using Python Tika.
-    Works for PDFs, DOCX, XLSX, etc.
-    """
-    file.seek(0)  # Important: reset pointer to start
-    parsed = parser.from_buffer(file.read())
-    text = parsed.get("content", "")
-    return text or ""
-
+    response = requests.put(
+        TIKA_URL,
+        headers={"Accept": "text/plain"},
+        data=file.read()
+    )
+    return response.text
 
 # -------------------
 # Streamlit UI
@@ -392,7 +387,7 @@ st.markdown(
     """
     <style>
         .css-18e3th9 {  /* main block container class */
-            padding-top: -100rem;
+            padding-top: -1000rem;
         }
     </style>
     """,

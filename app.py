@@ -71,7 +71,9 @@ def extract_items(text, format_type):
         
 
     elif format_type == "B":  # Packing List  Shipping Docs
-        data["Sold To"] = re.search(r"Customer\s+(.*?)(?:\n\s*\n|$)", text, re.DOTALL)
+        match = re.search(r"Customer\s+(?:Company\s*)?(.*?)(?:\n\s*\n|$)", text, re.DOTALL | re.IGNORECASE)
+        data["Sold To"] = match.group(1).strip() if match else None
+
         
         data["Sold To Code"] = re.search(r"Code[:\s]+(.+?)(?:\n|$)", text)
         data["Incoterms"] = re.search(r"Incoterms[:\s]+(.+?)(?:\n|$)", text)
@@ -183,7 +185,9 @@ def extract_items(text, format_type):
             data["Order Number"] = None
             data["Purchase Order Number"] = None
 
-        data["Sold To"] = re.search(r"Customer\s+(.*?)(?:\n\s*\n|$)", text, re.DOTALL)
+        match = re.search(r"Customer\s+(?:Company\s*)?(.*?)(?:\n\s*\n|$)", text, re.DOTALL | re.IGNORECASE)
+        data["Sold To"] = match.group(1).strip() if match else None
+
         data["Sold To Code"] = re.search(r"Code[:\s]+([\d/-]+)", text)
         data["Transport Mode"] = re.search(r"Mode of Transport[:\s]+(.+?)(?:\n|$)", text)   
         data["Incoterms"] = re.search(r"Incoterms[:\s]+(.+?)(?:\n|$)", text)
@@ -197,7 +201,8 @@ def extract_items(text, format_type):
         match = re.search(r"Sales number[:\s].*?\n([\s\S]*?)\nIncoterms:", text, re.MULTILINE)
         data["Product Description"] = match.group(1).strip() if match else None
 
-        data["Net Weight (Kg)"] = re.search(r"Total net weight[:\s]+([\d,.]+)\s*KG", text, re.IGNORECASE)
+        match = re.search(r"Total net weight[:\s]+([\d,.]+)\s*KG", text, re.IGNORECASE)
+        data["Net Weight (Kg)"] = match.group(1).replace(",", "") if match else None
 
         match = re.search(r"(\d+\.\d{4})", text)
         data['Price / Unit'] = match.group(1) if match else None
@@ -230,13 +235,14 @@ def extract_items(text, format_type):
 
 
 
-        match = re.search(r"(?:Contact[:\s]+|^)(Attn:.*?)(?:\n|$)", text, re.IGNORECASE | re.MULTILINE)
+        match = re.search(r"(?:Contact[:\s]+|^)(Attn:\s*.*?)(?:\n|$)", text, re.IGNORECASE | re.MULTILINE)
         if match:
-            data["Contact"] = match.group(1).strip()
+            data["Contact"] = re.sub(r"^Attn:\s*", "", match.group(1).strip(), flags=re.IGNORECASE)
         else:
             # Fallback: find line starting with "Attn:"
-            match = re.search(r"^(Attn:.*)$", text, re.MULTILINE)
+            match = re.search(r"^Attn:\s*(.*)$", text, re.MULTILINE | re.IGNORECASE)
             data["Contact"] = match.group(1).strip() if match else None
+
 
         # --- Email ---
         match = re.search(r"(?:Email[:\s]+)?([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})", text, re.IGNORECASE)
@@ -322,7 +328,10 @@ def extract_items(text, format_type):
         data["Bank Address"] = clean_address
         
         data["Bank City"] =  re.search(r"City:\s*(.+)\s", text)
-        data["Contact"] =  re.search(r"Contact:\s*(.+)\s", text)
+        
+        match = re.search(r"Contact:\s*(.+)\s", text)
+        data["Contact"] = match.group(1).replace("Attn:", "").strip() if match else None
+
         data["Email"] =  re.search(r"Email:\s*(.+)\s", text)
         data["Cell Phone"] =  re.search(r"Cell Phone\s*(.+)\s", text)
 
@@ -341,14 +350,39 @@ def extract_items(text, format_type):
         data["Specification Number"] = re.search(r"Specification number\s*=\s*(\d+)", text)
 
         data["Net Weight (Kg)"] = re.search(r"Quantity\s*([\d,]+\.\d+)\s*KG", text, re.IGNORECASE)
-# Convert match to string if found
+        # Convert match to string if found
         if isinstance(data["Net Weight (Kg)"], re.Match):
             data["Net Weight (Kg)"] = data["Net Weight (Kg)"].group(1).strip()
 
 
     elif format_type == "F":  # Packing List
-        data["Customer Reference"] = re.search(r"Customer Ref\.\s*:\s*(.+)", text)     
-        
+
+        match = re.search(r"Customer Ref\.\s*:\s*(\S+)\s*-?\s*PO\s+(\d+)", text, re.IGNORECASE)
+        if match:
+            data["Order Number"] = match.group(1)
+            data["Purchase Order Number"] = match.group(2)
+        else:
+            data["Order Number"] = None
+            data["Purchase Order Number"] = None
+
+
+        # Consignee block
+        data["Sold To Code"] = re.search(r"Consignee:\s*Code:\s*(\d+)", text)
+        data["Sold To"] = re.search(r"Consignee:.*?Company\s*(.+?)\s*Customer Ref\.", text, re.DOTALL) 
+        data["Incoterms"] = re.search(r"Incoterms[:\s]+(.+?)(?:\n|$)", text)
+        data["Mode of Transport"] = re.search(r"Mode of Transport[:\s]+(.+?)(?:\n|$)", text)
+
+        match = re.search(r"Total:\s*\d+\s*Packages\s+([\d,]+\.\d{3})", text)
+
+        if match:
+            quantity = match.group(1).replace(",", "")
+            # Remove trailing zeros after decimal point
+            if '.' in quantity:
+                quantity = quantity.rstrip('0').rstrip('.')
+            data["Net Weight (Kg)"] = quantity
+        else:
+            data["Net Weight (Kg)"] = None
+
 
     # Convert regex results to strings
     for k, v in data.items():

@@ -762,6 +762,110 @@ def render_categorized_table(results):
                 else:
                     st.markdown('<div class="no-data-message">No data available for this category</div>', unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* Existing CSS styles... */
+
+/* Processing Animation Styles */
+.processing-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    margin: 20px 0;
+}
+
+.processing-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #076e5d;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.processing-subtitle {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid #e3e3e3;
+    border-top: 4px solid #076e5d;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.progress-container {
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 20px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #076e5d, #075649);
+    border-radius: 10px;
+    transition: width 0.5s ease-in-out;
+    box-shadow: 0 2px 8px rgba(7, 110, 93, 0.3);
+}
+
+.progress-text {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #076e5d;
+}
+
+.current-file {
+    text-align: center;
+    font-size: 14px;
+    color: #666;
+    margin-top: 5px;
+    font-style: italic;
+}
+
+.dots {
+    display: inline-block;
+}
+
+.dots::after {
+    content: '';
+    animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+    0%, 20% { content: ''; }
+    40% { content: '.'; }
+    60% { content: '..'; }
+    80%, 100% { content: '...'; }
+}
+</style>
+""", unsafe_allow_html=True)
+
 # --- Process button logic ---
 if process_button:
     # Count total files to process

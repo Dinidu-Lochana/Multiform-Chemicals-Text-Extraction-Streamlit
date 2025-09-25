@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from openpyxl import load_workbook
 import pandas as pd
+import time
 
 
 # Load environment variables
@@ -763,35 +764,99 @@ def render_categorized_table(results):
 
 # --- Process button logic ---
 if process_button:
-    results = {}
-
+    # Count total files to process
+    files_to_process = []
     if proforma_invoice_file:
-        text = extract_text_from_file(proforma_invoice_file)
-        results["Proforma Invoice"] = extract_items(text, "D")
-
+        files_to_process.append(("Proforma Invoice", proforma_invoice_file, "D"))
     if order_confirmation_file:
-        text = extract_text_from_file(order_confirmation_file)
-        results["Order Confirmation"] = extract_items(text, "C")
-
+        files_to_process.append(("Order Confirmation", order_confirmation_file, "C"))
     if purchase_order_file:
-        text = extract_text_from_file(purchase_order_file)
-        results["Purchase Order"] = extract_items(text, "A")
-
+        files_to_process.append(("Purchase Order", purchase_order_file, "A"))
     if invoice_file:
-        text = extract_text_from_file(invoice_file)
-        results["Invoice - Shipping Document"] = extract_items(text, "B")
-
+        files_to_process.append(("Invoice - Shipping Document", invoice_file, "B"))
     if coa_file:
-        text = extract_text_from_file(coa_file)
-        results["Certificate of Analysis"] = extract_items(text, "E")
-
+        files_to_process.append(("Certificate of Analysis", coa_file, "E"))
     if packing_list_file:
-        text = extract_text_from_file(packing_list_file)
-        results["Packing List"] = extract_items(text, "F")
-
-    if results:
-        
-        render_categorized_table(results)
-                
-    else:
+        files_to_process.append(("Packing List", packing_list_file, "F"))
+    
+    if not files_to_process:
         st.error("No documents were uploaded!")
+    else:
+        total_files = len(files_to_process)
+        
+        # Create containers for the processing animation
+        processing_container = st.empty()
+        
+        # Show initial processing state
+        processing_html = f"""
+        <div class="processing-container">
+            <div class="processing-title">Processing Documents</div>
+            <div class="processing-subtitle">Extracting data from your uploaded files<span class="dots"></span></div>
+            <div class="spinner"></div>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text">0%</div>
+                <div class="current-file">Initializing...</div>
+            </div>
+        </div>
+        """
+        processing_container.markdown(processing_html, unsafe_allow_html=True)
+        
+        # Process files one by one
+        results = {}
+        
+        for i, (doc_type, file, format_type) in enumerate(files_to_process):
+            # Update progress
+            progress_percentage = int((i / total_files) * 100)
+            
+            # Update processing display
+            processing_html = f"""
+            <div class="processing-container">
+                <div class="processing-title">Processing Documents</div>
+                <div class="processing-subtitle">Extracting data from your uploaded files<span class="dots"></span></div>
+                <div class="spinner"></div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {progress_percentage}%"></div>
+                    </div>
+                    <div class="progress-text">{progress_percentage}%</div>
+                    <div class="current-file">Processing: {doc_type}...</div>
+                </div>
+            </div>
+            """
+            processing_container.markdown(processing_html, unsafe_allow_html=True)
+            
+            # Add a small delay to make the animation visible
+            import time
+            time.sleep(0.5)
+            
+            # Extract text and process
+            text = extract_text_from_file(file)
+            results[doc_type] = extract_items(text, format_type)
+        
+        # Show completion
+        processing_html = f"""
+        <div class="processing-container">
+            <div class="processing-title">✅ Processing Complete!</div>
+            <div class="processing-subtitle">Successfully extracted data from {total_files} document(s)</div>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 100%"></div>
+                </div>
+                <div class="progress-text">100%</div>
+                <div class="current-file">All documents processed successfully!</div>
+            </div>
+        </div>
+        """
+        processing_container.markdown(processing_html, unsafe_allow_html=True)
+        
+        # Small delay before showing results
+        time.sleep(1)
+        
+        # Clear the processing container and show results
+        processing_container.empty()
+        
+        # Render the results table
+        render_categorized_table(results)

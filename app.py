@@ -266,7 +266,7 @@ def render_categorized_table(results):
             background: white;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06); # Shadow
         }
         .comparison-table th, .comparison-table td {
             padding: 6px 4px; /* Reduced from 12px 8px */

@@ -214,39 +214,36 @@ def render_categorized_table(results):
             transform: translateY(-1px);
             box-shadow: 0 3px 12px rgba(0,0,0,0.12);
         }
-        .green-cell {
-            background-color: #d4edda;
-            color: #155724;
-            padding: 4px 8px; /* Reduced padding */
+        .data-cell {
+           display: inline-flex;           /* Was: flex */
+            align-items: center;            
+            justify-content: center;        
+            gap: 4px;                       /* Space between text and icon */
+            padding: 4px 8px;
             border-radius: 12px;
-            display: inline-block;
-            margin: 1px;
-            min-width: 50px; /* Reduced from 70px */
-            text-align: center;
-            border: 1px solid #c3e6cb;
+            min-width: 50px;
+            max-width: 140px;
+            font-size: 14px;
+            background-color: #ffffff;
+            color: #495057;
+            border: 1px solid #dee2e6;
             box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            font-weight: 500;
-            word-wrap: break-word;
-            max-width: 140px; /* Reduced from 180px */
-            font-size: 14px; /* Added smaller font size */
-            line-height: 1.2;
+            word-break: break-word;
         }
-        .red-cell {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 4px 8px; /* Reduced padding */
-            border-radius: 12px;
-            display: inline-block;
-            margin: 1px;
-            min-width: 50px; /* Reduced from 70px */
-            text-align: center;
-            border: 1px solid #f5c6cb;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            font-weight: 500;
-            word-wrap: break-word;
-            max-width: 140px; /* Reduced from 180px */
-            font-size: 14px; /* Added smaller font size */
-            line-height: 1.2;
+        .data-cell .text-content {
+            flex: 1;
+            margin-right: 5px;
+        }
+        .status-icon {
+            display: inline-block;          /* Added this line */
+            vertical-align: middle;         /* Ensures vertical alignment */
+            margin-left: 4px;
+            width: 16px;
+            height: 16px;
+            min-width: 16px;
+            min-height: 16px;
+            max-width: 16px;
+            max-height: 16px;
         }
         .field-column {
             font-weight: bold;
@@ -260,8 +257,8 @@ def render_categorized_table(results):
             line-height: 1.3;
         }
         .comparison-table {
-            width: 1400px; /* Reduced from 2000px */
-            min-width: 1400px;
+            width: 1350px; /* Reduced from 2000px */
+            min-width: 1350px;
             border-collapse: separate;
             border-spacing: 0 4px; /* Reduced from 8px */
             margin: 8px 0; /* Reduced margin */
@@ -282,7 +279,7 @@ def render_categorized_table(results):
             line-height: 1.2;
         }
         .comparison-table th:first-child, .comparison-table td:first-child {
-            width: 140px; /* Reduced from 200px */
+            width: 120px; /* Reduced from 200px */
             text-align: center;
         }
         .comparison-table th:not(:first-child), .comparison-table td:not(:first-child) {
@@ -404,24 +401,40 @@ def render_categorized_table(results):
                         
                         html_content += f'<tr><td class="field-column">{field}</td>'
                         
-                        # Helper function to determine cell styling
+                        # Helper function to determine cell styling with icons
                         def get_cell_display(value, reference_value, secondary_reference=None):
+                            # Simple and reliable SVG icons
+                            tick_icon = '''<svg class="status-icon" width="16" height="16" viewBox="0 0 16 16" style="display: inline-block; vertical-align: middle;">
+                                <circle cx="8" cy="8" r="8" fill="#28a745"/>
+                                <polyline points="4.5,8 7,10.5 11.5,6" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>'''
+                            
+                            cross_icon = '''<svg class="status-icon" width="16" height="16" viewBox="0 0 16 16" style="display: inline-block; vertical-align: middle;">
+                                <circle cx="8" cy="8" r="8" fill="#dc3545"/>
+                                <line x1="5" y1="5" x2="11" y2="11" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                                <line x1="11" y1="5" x2="5" y2="11" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            </svg>'''
+                            
                             if value:
                                 if reference_value and value == reference_value:
-                                    return f'<span class="green-cell">{value}</span>'
+                                    return f'<div class="data-cell"><span class="text-content">{value}</span>{tick_icon}</div>'
                                 elif not reference_value and secondary_reference and value == secondary_reference:
-                                    return f'<span class="green-cell">{value}</span>'
+                                    return f'<div class="data-cell"><span class="text-content">{value}</span>{tick_icon}</div>'
                                 elif reference_value and value != reference_value:
-                                    return f'<span class="red-cell">{value}</span>'
+                                    return f'<div class="data-cell"><span class="text-content">{value}</span>{cross_icon}</div>'
                                 elif not reference_value and secondary_reference and value != secondary_reference:
-                                    return f'<span class="red-cell">{value}</span>'
+                                    return f'<div class="data-cell"><span class="text-content">{value}</span>{cross_icon}</div>'
                                 else:
-                                    return f'<span class="green-cell">{value}</span>'
+                                    return f'<div class="data-cell"><span class="text-content">{value}</span>{tick_icon}</div>'
                             else:
                                 return '-'
                         
-                        # Proforma Invoice column (base reference)
-                        proforma_display = f'<span class="green-cell">{proforma_value}</span>' if proforma_value else '-'
+                        # Proforma Invoice column (base reference) - add tick icon
+                        tick_icon = '''<svg class="status-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" fill="#28a745"/>
+                            <path d="M8 12l3 3 5-6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        </svg>'''
+                        proforma_display = f'<div class="data-cell"><span class="text-content">{proforma_value}</span>{tick_icon}</div>' if proforma_value else '-'
                         html_content += f'<td>{proforma_display}</td>'
                         
                         # Other columns compared against proforma (or purchase order if proforma is empty)

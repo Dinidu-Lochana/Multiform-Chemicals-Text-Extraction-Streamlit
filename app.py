@@ -279,7 +279,7 @@ def render_categorized_table(results):
             line-height: 1.2;
         }
         .comparison-table th:first-child, .comparison-table td:first-child {
-            width: 120px; /* Reduced from 200px */
+            width: 130px; /* Reduced from 200px */
             text-align: center;
         }
         .comparison-table th:not(:first-child), .comparison-table td:not(:first-child) {

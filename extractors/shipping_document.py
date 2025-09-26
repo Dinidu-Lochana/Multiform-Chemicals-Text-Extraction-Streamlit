@@ -44,6 +44,18 @@ def extract_packing_list(text):
         data["Price / Unit"] = None   
     data["Product Code"] = re.search(r"Sales number[:\s]+([A-Z0-9-]+)", text)
     headers_none = ["O/Order number","Shipment Date","Order Net quantity","Amount"]
+
+    # Find "Sales number" line
+    match = re.search(r"Sales number:.*", text)
+    if match:
+        # Get all lines
+        lines = text.splitlines()
+        idx = lines.index(match.group(0))
+        # Find next non-empty line after sales number
+        for i in range(idx + 1, len(lines)):
+            if lines[i].strip():
+                data["Product Description"] = lines[i].strip()
+                break
     
     for h in headers_none:
         data.pop(h, None)
@@ -63,6 +75,10 @@ def extract_packing_list(text):
     # Contact
     contact_match = re.search(r"(?:Contact:|Attn:)\s*(.+?)(?:\n|$)", text, re.IGNORECASE)
     data["Contact"] = contact_match.group(1).strip() if contact_match else None
+
+    if data["Contact"]:
+        data["Contact"] = re.sub(r"^Attn:\s*", "", data["Contact"], flags=re.IGNORECASE)
+
     # Email
     email_match = re.search(r"([\w\.-]+@[\w\.-]+\.\w+)", text)
     data["Email"] = email_match.group(1).strip() if email_match else None
@@ -82,6 +98,10 @@ def extract_packing_list(text):
         data["Net Weight (Kg)"] = quantity
     else:
         data["Net Weight (Kg)"] = None
+
+    match = re.search(r"Amount\s*\n\s*([A-Z]{3})\b", text)
+    data["Currency"] = match.group(1) if match else None
+
     data["Order Value"] = re.search(r"Sub Total\s*([\d,.]+)", text)
     data["Total Value"] = re.search(r"Total Amount\s*USD\s*([\d,.]+)", text)
     

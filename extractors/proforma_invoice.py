@@ -5,13 +5,17 @@ def extract_proforma_invoice(text):
     data = {}
 
     # Header details
-    match = re.search(r"(\S+)\s+PO\s+(\d+)", text)
+    match = re.search(r"Order No\s+([^\s-]+(?:\s*-\s*[^\s-]+)*?)\s*-?\s*PO\s+(\d+)", text)
     if match:
+        data = {}
         data["Order Number"] = match.group(1).strip()
         data["Purchase Order Number"] = match.group(2).strip()
+        print(data)
     else:
+        data = {}
         data["Order Number"] = None
         data["Purchase Order Number"] = None
+        
     data["Order Type"] = re.search(r"Order Type:\s*(.+)\s+Customer Ref", text)
     
     # Sold To & Ship To

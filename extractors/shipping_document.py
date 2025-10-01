@@ -105,7 +105,11 @@ def extract_packing_list(text):
     data["Order Value"] = re.search(r"Sub Total\s*([\d,.]+)", text)
     data["Total Value"] = re.search(r"Total Amount\s*USD\s*([\d,.]+)", text)
     
-    data["Transport Mode"] = re.search(r"Mode of transport[:\s]+(.*?)(?=\s+Import licence|$)", text)
+    transport_match = re.search(r"Mode of transport[:\s]*([^\n\r]+)", text, re.IGNORECASE)
+    if transport_match:
+        data["Transport Mode"] = transport_match.group(1).strip()
+    
+
     data["Material Number"] = re.search(r"Material numbers.*?=\s*(\d+)", text)
     data["Specification Number"] = re.search(r"Specification number.*?=\s*(\d+)", text)
 

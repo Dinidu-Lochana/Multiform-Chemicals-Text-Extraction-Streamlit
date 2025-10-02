@@ -15,14 +15,19 @@ def extract_packing_list(text):
     # Extract Shipment Date (comes after the O/Order pattern)
     date_match = re.search(r"(\d+\s*/\s*\d+\s*/\s*\d+)\s+(\d+\s+\w+\s+\d+)", text)
     data["Shipment Date"] = date_match.group(2) if date_match else None
-    # Extract Y/Order number (comes after the date)
-    match = re.search(r"(\S+)\s+PO\s+(\d+)", text, re.IGNORECASE)
+
+    # Extract Order number and Purchase Order number
+    match = re.search(r"(\S+?)\s*\.?\s*PO\s+(\d+)", text, re.IGNORECASE)
     if match:
-        data["Order Number"] = match.group(1).strip()
+        order_num = match.group(1).strip()
+        # Remove trailing hyphen or period if present
+        order_num = order_num.rstrip('-.') 
+        data["Order Number"] = order_num
         data["Purchase Order Number"] = match.group(2).strip()
     else:
         data["Order Number"] = None
         data["Purchase Order Number"] = None
+
     # Extract Net Weight (Kg) (number + unit like KG)
     net_qty_match = re.search(r"(\d+\.?\d*\s+[A-Z]+)", text)
     data["Order Net quantity"] = net_qty_match.group(1).strip() if net_qty_match else None
@@ -42,36 +47,69 @@ def extract_packing_list(text):
         data["Price / Unit"] = quantity
     else:
         data["Price / Unit"] = None   
-    data["Product Code"] = re.search(r"Sales number[:\s]+([A-Z0-9-]+)", text)
-    headers_none = ["O/Order number","Shipment Date","Order Net quantity","Amount"]
+    sales_line_match = re.search(r'Sales number:\s*(.+?)(?=Tax|\n|$)', text, re.IGNORECASE)
 
-    # Find "Sales number" line
-    match = re.search(r"Sales number:.*", text)
-    if match:
-        # Get all lines
-        lines = text.splitlines()
-        idx = lines.index(match.group(0))
-        # Find next non-empty line after sales number
-        for i in range(idx + 1, len(lines)):
-            if lines[i].strip():
-                data["Product Description"] = lines[i].strip()
-                break
+    if sales_line_match:
+        sales_content = sales_line_match.group(1).strip()
+
+        # Split by last word that looks like a code
+        code_pattern = r'^(.+?)\s+([A-Z0-9][\w\-]*[A-Z0-9])$'
+        match = re.match(code_pattern, sales_content, re.IGNORECASE)
+
+        if match:
+            # Description and code are on the same line
+            data["Product Description"] = match.group(1).strip()
+            data["Product Code"] = match.group(2).strip()
+        else:
+            # Only code on sales number line, description elsewhere
+            data["Product Code"] = sales_content.strip()
+
+            # Look for description after the sales number/tax line
+            desc_pattern = r'Sales number:.*?Tax.*?(?:\n\s*\n|\n)(.*?)(?=\n\s*Packed:|\n\s*\||$)'
+            desc_match = re.search(desc_pattern, text, re.IGNORECASE | re.MULTILINE | re.DOTALL)
+
+            if desc_match:
+                desc = desc_match.group(1).strip()
+                desc = ' '.join(desc.split())
+                data["Product Description"] = desc
     
-    for h in headers_none:
-        data.pop(h, None)
-    # Bank Details
-    match = re.search(r"BANK NAME:\s*\n([^\n]+)", text, re.IGNORECASE)
-    data["Bank Name"] = match.group(1).strip() if match else None
-    
-    match = re.search(r"BANK NAME:[\s\S]*?\n[^\n]+\n([^\n]+)\n([^\n]+)\n([^\n]+)", text, re.IGNORECASE)
-    if match:
-        # Bank Address = line 1 + line 2
-        data["Bank Address"] = match.group(1).strip() + " " + match.group(2).strip()
-        # Bank City = line 3
-        data["Bank City"] = match.group(3).strip()
+    # Bank details
+    bank_name_match = re.search(r"BANK NAME:\s*\n([^\n]+)", text, re.IGNORECASE)
+
+    if bank_name_match:
+        data["Bank Name"] = bank_name_match.group(1).strip()
+        
+        address_match = re.search(r"BANK NAME:[\s\S]*?\n[^\n]+\n([^\n]+)\n([^\n]+)\n([^\n]+)", text, re.IGNORECASE)
+        if address_match:
+            data["Bank Address"] = address_match.group(1).strip() + " " + address_match.group(2).strip()
+            data["Bank City"] = address_match.group(3).strip()
+        else:
+            data["Bank Address"] = None
+            data["Bank City"] = None
     else:
-        data["Bank Address"] = None
-        data["Bank City"] = None
+        # Look for unlabeled bank details
+        # Find line with "Bank" (word boundary to ensure it's a complete word)
+        bank_section = re.search(
+            r"\b([A-Z][^\n]*Bank)\s*\n"  # Bank name - must start with capital letter, end with "Bank"
+            r"([^\n]+)\s*\n"              # Line 1: Trade Operations Dept.
+            r"([^\n]+)\s*\n"              # Line 2: No 65C, Dharmapala Mawatha,
+            r"([^\n]+)\s*\n"              # Line 3: Colombo 7
+            r"([^\n]+)",                  # Line 4: Sri Lanka
+            text,
+            re.IGNORECASE
+        )
+        
+        if bank_section:
+            data["Bank Name"] = bank_section.group(1).strip()
+            # Address = Line 1 + Line 2
+            data["Bank Address"] = bank_section.group(2).strip() + " " + bank_section.group(3).strip()
+            # City = Line 3 (Colombo 7)
+            data["Bank City"] = bank_section.group(4).strip()
+        else:
+            data["Bank Name"] = None
+            data["Bank Address"] = None
+            data["Bank City"] = None
+
     # Contact
     contact_match = re.search(r"(?:Contact:|Attn:)\s*(.+?)(?:\n|$)", text, re.IGNORECASE)
     data["Contact"] = contact_match.group(1).strip() if contact_match else None
@@ -105,7 +143,16 @@ def extract_packing_list(text):
     data["Order Value"] = re.search(r"Sub Total\s*([\d,.]+)", text)
     data["Total Value"] = re.search(r"Total Amount\s*USD\s*([\d,.]+)", text)
     
-    data["Transport Mode"] = re.search(r"Mode of transport[:\s]+(.*?)(?=\s+Import licence|$)", text)
+    transport_match = re.search(r"Mode of transport[:\s]*(.+?)(?=\s*\n|$)", text, re.IGNORECASE)
+    if transport_match:
+        transport_value = transport_match.group(1).strip()
+        # Only assign if there's actual content (not just whitespace)
+        if transport_value and not transport_value.startswith(("Import", "NÂ°", "N°")):
+            data["Transport Mode"] = transport_value
+        else:
+            data["Transport Mode"] = None
+
+
     data["Material Number"] = re.search(r"Material numbers.*?=\s*(\d+)", text)
     data["Specification Number"] = re.search(r"Specification number.*?=\s*(\d+)", text)
 

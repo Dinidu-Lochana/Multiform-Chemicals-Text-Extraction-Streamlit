@@ -4,13 +4,15 @@ def extract_order_confirmation(text):
     """Extract data from Order Confirmation (Format C)"""
     data = {}
 
-    match = re.search(r"(\S+)\s+PO\s+(\d+)", text, re.IGNORECASE)
+    # This pattern captures everything before " PO " as Order Number
+    match = re.search(r"Order\s+(?:number|No)[:\s]+(.+?)\s+-?\s*PO\s+(\d+)", text, re.IGNORECASE)
     if match:
-        data["Order Number"] = match.group(1).strip()
+        data["Order Number"] = match.group(1).strip().rstrip('-').strip()
         data["Purchase Order Number"] = match.group(2).strip()
     else:
         data["Order Number"] = None
         data["Purchase Order Number"] = None
+        
     match = re.search(r"Customer\s+(?:Company\s*)?(.*?)(?:\n\s*\n|$)", text, re.DOTALL | re.IGNORECASE)
     data["Sold To"] = match.group(1).strip() if match else None
     data["Sold To Code"] = re.search(r"Code[:\s]+([\d/-]+)", text)
@@ -38,18 +40,44 @@ def extract_order_confirmation(text):
     data['Order Value'] = match.group(1) if match else None
     data["Total Value"] = re.search(r"Total Amount USD[:\s]+([\d,.]+)", text, re.IGNORECASE)
     
-    match = re.search(r"BANK NAME:\s*\n([^\n]+)", text, re.IGNORECASE)
-    data["Bank Name"] = match.group(1).strip() if match else None
-    
-    match = re.search(r"BANK NAME:[\s\S]*?\n[^\n]+\n([^\n]+)\n([^\n]+)\n([^\n]+)", text, re.IGNORECASE)
-    if match:
-        # Bank Address = line 1 + line 2
-        data["Bank Address"] = match.group(1).strip() + " " + match.group(2).strip()
-        # Bank City = line 3
-        data["Bank City"] = match.group(3).strip()
+    # Bank details
+    bank_name_match = re.search(r"BANK NAME:\s*\n([^\n]+)", text, re.IGNORECASE)
+
+    if bank_name_match:
+        data["Bank Name"] = bank_name_match.group(1).strip()
+        
+        address_match = re.search(r"BANK NAME:[\s\S]*?\n[^\n]+\n([^\n]+)\n([^\n]+)\n([^\n]+)", text, re.IGNORECASE)
+        if address_match:
+            data["Bank Address"] = address_match.group(1).strip() + " " + address_match.group(2).strip()
+            data["Bank City"] = address_match.group(3).strip()
+        else:
+            data["Bank Address"] = None
+            data["Bank City"] = None
     else:
-        data["Bank Address"] = None
-        data["Bank City"] = None
+        # Look for unlabeled bank details
+        # Find line with "Bank" (word boundary to ensure it's a complete word)
+        bank_section = re.search(
+            r"\b([A-Z][^\n]*Bank)\s*\n"  # Bank name - must start with capital letter, end with "Bank"
+            r"([^\n]+)\s*\n"              # Line 1: Trade Operations Dept.
+            r"([^\n]+)\s*\n"              # Line 2: No 65C, Dharmapala Mawatha,
+            r"([^\n]+)\s*\n"              # Line 3: Colombo 7
+            r"([^\n]+)",                  # Line 4: Sri Lanka
+            text,
+            re.IGNORECASE
+        )
+        
+        if bank_section:
+            data["Bank Name"] = bank_section.group(1).strip()
+            # Address = Line 1 + Line 2
+            data["Bank Address"] = bank_section.group(2).strip() + " " + bank_section.group(3).strip()
+            # City = Line 3 (Colombo 7)
+            data["Bank City"] = bank_section.group(4).strip()
+        else:
+            data["Bank Name"] = None
+            data["Bank Address"] = None
+            data["Bank City"] = None
+
+
     match = re.search(r"(?:Contact[:\s]+|^)(Attn:\s*.*?)(?:\n|$)", text, re.IGNORECASE | re.MULTILINE)
     if match:
         data["Contact"] = re.sub(r"^Attn:\s*", "", match.group(1).strip(), flags=re.IGNORECASE)

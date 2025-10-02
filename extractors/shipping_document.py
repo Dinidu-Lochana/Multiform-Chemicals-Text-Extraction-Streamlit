@@ -105,9 +105,16 @@ def extract_packing_list(text):
     data["Order Value"] = re.search(r"Sub Total\s*([\d,.]+)", text)
     data["Total Value"] = re.search(r"Total Amount\s*USD\s*([\d,.]+)", text)
     
-    transport_match = re.search(r"Mode of transport[:\s]*([^\n\r]+)", text, re.IGNORECASE)
+    transport_match = re.search(r"Mode of transport[:\s]*(.+?)(?=\s*\n|$)", text, re.IGNORECASE)
     if transport_match:
-        data["Transport Mode"] = transport_match.group(1).strip()
+        transport_value = transport_match.group(1).strip()
+        # Only assign if there's actual content (not just whitespace)
+        if transport_value and not transport_value.startswith(("Import", "NÂ°", "N°")):
+            data["Transport Mode"] = transport_value
+        else:
+            data["Transport Mode"] = None
+    
+
     
 
     data["Material Number"] = re.search(r"Material numbers.*?=\s*(\d+)", text)

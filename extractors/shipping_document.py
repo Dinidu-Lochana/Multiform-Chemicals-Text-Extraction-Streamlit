@@ -15,14 +15,19 @@ def extract_packing_list(text):
     # Extract Shipment Date (comes after the O/Order pattern)
     date_match = re.search(r"(\d+\s*/\s*\d+\s*/\s*\d+)\s+(\d+\s+\w+\s+\d+)", text)
     data["Shipment Date"] = date_match.group(2) if date_match else None
-    # Extract Y/Order number (comes after the date)
-    match = re.search(r"(\S+)\s+PO\s+(\d+)", text, re.IGNORECASE)
+
+    # Extract Order number and Purchase Order number
+    match = re.search(r"(\S+?)\s*-?\s*PO\s+(\d+)", text, re.IGNORECASE)
     if match:
-        data["Order Number"] = match.group(1).strip()
+        order_num = match.group(1).strip()
+        # Remove trailing hyphen if present
+        order_num = order_num.rstrip('-')
+        data["Order Number"] = order_num
         data["Purchase Order Number"] = match.group(2).strip()
     else:
         data["Order Number"] = None
         data["Purchase Order Number"] = None
+
     # Extract Net Weight (Kg) (number + unit like KG)
     net_qty_match = re.search(r"(\d+\.?\d*\s+[A-Z]+)", text)
     data["Order Net quantity"] = net_qty_match.group(1).strip() if net_qty_match else None
@@ -59,19 +64,45 @@ def extract_packing_list(text):
     
     for h in headers_none:
         data.pop(h, None)
+
     # Bank Details
-    match = re.search(r"BANK NAME:\s*\n([^\n]+)", text, re.IGNORECASE)
-    data["Bank Name"] = match.group(1).strip() if match else None
-    
-    match = re.search(r"BANK NAME:[\s\S]*?\n[^\n]+\n([^\n]+)\n([^\n]+)\n([^\n]+)", text, re.IGNORECASE)
-    if match:
-        # Bank Address = line 1 + line 2
-        data["Bank Address"] = match.group(1).strip() + " " + match.group(2).strip()
-        # Bank City = line 3
-        data["Bank City"] = match.group(3).strip()
+    # Bank details
+    bank_name_match = re.search(r"BANK NAME:\s*\n([^\n]+)", text, re.IGNORECASE)
+
+    if bank_name_match:
+        data["Bank Name"] = bank_name_match.group(1).strip()
+        
+        address_match = re.search(r"BANK NAME:[\s\S]*?\n[^\n]+\n([^\n]+)\n([^\n]+)\n([^\n]+)", text, re.IGNORECASE)
+        if address_match:
+            data["Bank Address"] = address_match.group(1).strip() + " " + address_match.group(2).strip()
+            data["Bank City"] = address_match.group(3).strip()
+        else:
+            data["Bank Address"] = None
+            data["Bank City"] = None
     else:
-        data["Bank Address"] = None
-        data["Bank City"] = None
+        # Look for unlabeled bank details
+        # Find line with "Bank" (word boundary to ensure it's a complete word)
+        bank_section = re.search(
+            r"\b([A-Z][^\n]*Bank)\s*\n"  # Bank name - must start with capital letter, end with "Bank"
+            r"([^\n]+)\s*\n"              # Line 1: Trade Operations Dept.
+            r"([^\n]+)\s*\n"              # Line 2: No 65C, Dharmapala Mawatha,
+            r"([^\n]+)\s*\n"              # Line 3: Colombo 7
+            r"([^\n]+)",                  # Line 4: Sri Lanka
+            text,
+            re.IGNORECASE
+        )
+        
+        if bank_section:
+            data["Bank Name"] = bank_section.group(1).strip()
+            # Address = Line 1 + Line 2
+            data["Bank Address"] = bank_section.group(2).strip() + " " + bank_section.group(3).strip()
+            # City = Line 3 (Colombo 7)
+            data["Bank City"] = bank_section.group(4).strip()
+        else:
+            data["Bank Name"] = None
+            data["Bank Address"] = None
+            data["Bank City"] = None
+
     # Contact
     contact_match = re.search(r"(?:Contact:|Attn:)\s*(.+?)(?:\n|$)", text, re.IGNORECASE)
     data["Contact"] = contact_match.group(1).strip() if contact_match else None
@@ -113,9 +144,7 @@ def extract_packing_list(text):
             data["Transport Mode"] = transport_value
         else:
             data["Transport Mode"] = None
-    
 
-    
 
     data["Material Number"] = re.search(r"Material numbers.*?=\s*(\d+)", text)
     data["Specification Number"] = re.search(r"Specification number.*?=\s*(\d+)", text)

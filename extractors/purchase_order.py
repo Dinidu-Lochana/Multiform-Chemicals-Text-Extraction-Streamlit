@@ -37,10 +37,11 @@ def extract_purchase_order(text):
     data["Total Value"] = re.search(r"Total net value excl\. tax\s+([\d,]+\.\d{2})", text)
     
     # Description (between Material No. and Price columns)
-    match = re.search(r"\b\d+\s+\d+\s+(.+?)\s+(GIV(?:AUDAN)?)\s+(\S+)", text, re.IGNORECASE)
+    match = re.search(r"\b\d+\s+\d+\s+(.+?)\s+(GIV(?:AUDAN)?)\s+(.+?)(?=\s*$)", text, re.IGNORECASE | re.MULTILINE)
     if match:
         data["Product Description"] = match.group(1).strip()
         data["Product Code"] = match.group(3).strip()
+
     data["PO against Contract"] = re.search(r"PO against Contract[:\s]+(.+?)(?:\n|$)", text)
     match = re.search(r"As per\s+[Ss]pecification number[:\s]+(\d+)", text)
     data["Specification Number"] = match.group(1).strip() if match else None

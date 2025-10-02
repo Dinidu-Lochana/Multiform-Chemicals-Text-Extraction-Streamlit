@@ -17,11 +17,11 @@ def extract_packing_list(text):
     data["Shipment Date"] = date_match.group(2) if date_match else None
 
     # Extract Order number and Purchase Order number
-    match = re.search(r"(\S+?)\s*-?\s*PO\s+(\d+)", text, re.IGNORECASE)
+    match = re.search(r"(\S+?)\s*\.?\s*PO\s+(\d+)", text, re.IGNORECASE)
     if match:
         order_num = match.group(1).strip()
-        # Remove trailing hyphen if present
-        order_num = order_num.rstrip('-')
+        # Remove trailing hyphen or period if present
+        order_num = order_num.rstrip('-.') 
         data["Order Number"] = order_num
         data["Purchase Order Number"] = match.group(2).strip()
     else:

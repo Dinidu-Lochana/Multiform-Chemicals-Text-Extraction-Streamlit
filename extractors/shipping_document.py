@@ -47,25 +47,32 @@ def extract_packing_list(text):
         data["Price / Unit"] = quantity
     else:
         data["Price / Unit"] = None   
-    data["Product Code"] = re.search(r"Sales number[:\s]+([A-Z0-9-]+)", text)
-    headers_none = ["O/Order number","Shipment Date","Order Net quantity","Amount"]
+    sales_line_match = re.search(r'Sales number:\s*(.+?)(?=Tax|\n|$)', text, re.IGNORECASE)
 
-    # Find "Sales number" line
-    match = re.search(r"Sales number:.*", text)
-    if match:
-        # Get all lines
-        lines = text.splitlines()
-        idx = lines.index(match.group(0))
-        # Find next non-empty line after sales number
-        for i in range(idx + 1, len(lines)):
-            if lines[i].strip():
-                data["Product Description"] = lines[i].strip()
-                break
+    if sales_line_match:
+        sales_content = sales_line_match.group(1).strip()
+
+        # Split by last word that looks like a code
+        code_pattern = r'^(.+?)\s+([A-Z0-9][\w\-]*[A-Z0-9])$'
+        match = re.match(code_pattern, sales_content, re.IGNORECASE)
+
+        if match:
+            # Description and code are on the same line
+            data["Product Description"] = match.group(1).strip()
+            data["Product Code"] = match.group(2).strip()
+        else:
+            # Only code on sales number line, description elsewhere
+            data["Product Code"] = sales_content.strip()
+
+            # Look for description after the sales number/tax line
+            desc_pattern = r'Sales number:.*?Tax.*?(?:\n\s*\n|\n)(.*?)(?=\n\s*Packed:|\n\s*\||$)'
+            desc_match = re.search(desc_pattern, text, re.IGNORECASE | re.MULTILINE | re.DOTALL)
+
+            if desc_match:
+                desc = desc_match.group(1).strip()
+                desc = ' '.join(desc.split())
+                data["Product Description"] = desc
     
-    for h in headers_none:
-        data.pop(h, None)
-
-    # Bank Details
     # Bank details
     bank_name_match = re.search(r"BANK NAME:\s*\n([^\n]+)", text, re.IGNORECASE)
 

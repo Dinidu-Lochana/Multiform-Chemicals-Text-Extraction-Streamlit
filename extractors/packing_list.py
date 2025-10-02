@@ -4,13 +4,14 @@ def extract_packing_list_f(text):
     """Extract data from Packing List (Format F)"""
     data = {}
 
-    match = re.search(r"Customer Ref\.\s*:\s*(\S+)\s*-?\s*PO\s+(\d+)", text, re.IGNORECASE)
+    match = re.search(r"Customer Ref\.\s*:\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)\s*-?\s*PO\s+(\d+)", text, re.IGNORECASE)
     if match:
-        data["Order Number"] = match.group(1)
-        data["Purchase Order Number"] = match.group(2)
+        data["Order Number"] = match.group(1).strip()
+        data["Purchase Order Number"] = match.group(2).strip()
     else:
         data["Order Number"] = None
         data["Purchase Order Number"] = None
+    
     # Consignee block
     data["Sold To Code"] = re.search(r"Consignee:\s*Code:\s*(\d+)", text)
     data["Sold To"] = re.search(r"Consignee:.*?Company\s*(.+?)\s*Customer Ref\.", text, re.DOTALL) 

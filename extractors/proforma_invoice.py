@@ -57,13 +57,10 @@ def extract_proforma_invoice(text):
     # Banking & Payment Info
     data["Bank Name"] =  re.search(r"Name:\s*(.+)\s+Packing List", text)
     clean_address = None  
-    # Extract raw block between Address and City
     match = re.search(r"Address:\s*(.*?)\s*City:", text, re.S)
     if match:
         raw_address = match.group(1).strip()
-        # Rule 1: Remove any "words in ALL CAPS" 
         clean_address = re.sub(r"\b[A-Z]{2,}(?:\s+[A-Z]{2,})*\b", "", raw_address)
-        # Rule 2: Remove extra spaces/commas
         clean_address = re.sub(r"\s{2,}", " ", clean_address).strip()
         clean_address = re.sub(r"\s+,", ",", clean_address)
     data["Bank Address"] = clean_address

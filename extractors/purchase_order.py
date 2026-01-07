@@ -42,11 +42,9 @@ def extract_purchase_order(text):
         data["Product Description"] = match.group(1).strip()
         data["Product Code"] = match.group(3).strip()
     else:
-        # If Givaudan not found, try without it (new scenario)
         match = re.search(r"\b\d+\s+\d+\s+(.+?)(?:\s+\d+(?:kg|g|l|ml)|\s+[\d,]+\.?\d*\s*g|\s*$)", text, re.IGNORECASE)
         if match:
             full_text = match.group(1).strip()
-            # Look for product code pattern at the end (e.g., 610192A - digits followed by optional letter)
             code_match = re.search(r'^(.+?)([A-Z]?\d{6,7}[A-Z]?)$', full_text)
             if code_match:
                 data["Product Description"] = code_match.group(1).strip()

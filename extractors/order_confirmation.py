@@ -34,14 +34,14 @@ def extract_order_confirmation(text):
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
         return cleaned
     
-    # Try Method 1: Sales number present
+    # Sales number present
     sales_match = re.search(r"Sales number[:\s]+(.+?)(?:\n|$)", text, re.IGNORECASE)
     if sales_match:
         data["Product Code"] = sales_match.group(1).strip()
         desc_match = re.search(r"Sales number[:\s].*?\n(.*?)(?=\nIncoterms:)", text, re.IGNORECASE | re.DOTALL)
         data["Product Description"] = clean_description(desc_match.group(1)) if desc_match else None
     else:
-        # Method 2: No Sales number
+        # No Sales number
         alt_match = re.search(r"KG\s+[\d.]+\s+[\d,.]+\s*\n(.+?)\s+([A-Z0-9]+)\s*\nIncoterms:", text, re.IGNORECASE)
         if alt_match:
             data["Product Description"] = clean_description(alt_match.group(1))
@@ -80,23 +80,19 @@ def extract_order_confirmation(text):
             data["Bank Address"] = None
             data["Bank City"] = None
     else:
-        # Look for unlabeled bank details
-        # Find line with "Bank" (word boundary to ensure it's a complete word)
         bank_section = re.search(
-            r"\b([A-Z][^\n]*Bank)\s*\n"  # Bank name - must start with capital letter, end with "Bank"
-            r"([^\n]+)\s*\n"              # Line 1: Trade Operations Dept.
-            r"([^\n]+)\s*\n"              # Line 2: No 65C, Dharmapala Mawatha,
-            r"([^\n]+)\s*\n"              # Line 3: Colombo 7
-            r"([^\n]+)",                  # Line 4: Sri Lanka
+            r"\b([A-Z][^\n]*Bank)\s*\n"  
+            r"([^\n]+)\s*\n"              
+            r"([^\n]+)\s*\n"             
+            r"([^\n]+)\s*\n"              
+            r"([^\n]+)",                 
             text,
             re.IGNORECASE
         )
 
         if bank_section:
             data["Bank Name"] = bank_section.group(1).strip()
-            # Address = Line 1 + Line 2
             data["Bank Address"] = bank_section.group(2).strip() + " " + bank_section.group(3).strip()
-            # City = Line 3 (Colombo 7)
             data["Bank City"] = bank_section.group(4).strip()
         else:
             data["Bank Name"] = None
@@ -108,7 +104,6 @@ def extract_order_confirmation(text):
     if match:
         data["Contact"] = re.sub(r"^Attn:\s*", "", match.group(1).strip(), flags=re.IGNORECASE)
     else:
-        # Fallback: find line starting with "Attn:"
         match = re.search(r"^Attn:\s*(.*)$", text, re.MULTILINE | re.IGNORECASE)
         data["Contact"] = match.group(1).strip() if match else None
     # --- Email ---

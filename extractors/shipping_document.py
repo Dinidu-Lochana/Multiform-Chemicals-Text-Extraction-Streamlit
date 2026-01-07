@@ -12,7 +12,7 @@ def extract_packing_list(text):
     
     match = re.search(r"(\d+\s*/\s*\d+\s*/\s*\d+)", text)
     data["O/Order number"] = match.group(1) if match else None
-    # Extract Shipment Date (comes after the O/Order pattern)
+    # Extract Shipment Date 
     date_match = re.search(r"(\d+\s*/\s*\d+\s*/\s*\d+)\s+(\d+\s+\w+\s+\d+)", text)
     data["Shipment Date"] = date_match.group(2) if date_match else None
 
@@ -20,7 +20,6 @@ def extract_packing_list(text):
     match = re.search(r"(\S+?)\s*\.?\s*PO\s+(\d+)", text, re.IGNORECASE)
     if match:
         order_num = match.group(1).strip()
-        # Remove trailing hyphen or period if present
         order_num = order_num.rstrip('-.') 
         data["Order Number"] = order_num
         data["Purchase Order Number"] = match.group(2).strip()
@@ -28,11 +27,10 @@ def extract_packing_list(text):
         data["Order Number"] = None
         data["Purchase Order Number"] = None
 
-    # Extract Net Weight (Kg) (number + unit like KG)
+    # Extract Net Weight (Kg) (number + unit)
     net_qty_match = re.search(r"(\d+\.?\d*\s+[A-Z]+)", text)
     data["Order Net quantity"] = net_qty_match.group(1).strip() if net_qty_match else None
-    # Extract the three values from the line after Y/Order number
-    # Pattern to match: number + KG, then price, then amount
+
     pattern = r"(\d+(?:\.\d+)?\s*KG)\s+(\d+(?:\.\d+)?)\s+([\d,]+\.?\d*)"
     match = re.search(pattern, text)
     if match:
@@ -52,16 +50,14 @@ def extract_packing_list(text):
     if sales_line_match:
         sales_content = sales_line_match.group(1).strip()
 
-        # Split by last word that looks like a code
         code_pattern = r'^(.+?)\s+([A-Z0-9][\w\-]*[A-Z0-9])$'
         match = re.match(code_pattern, sales_content, re.IGNORECASE)
 
         if match:
-            # Description and code are on the same line
+            # Description
             data["Product Description"] = match.group(1).strip()
             data["Product Code"] = match.group(2).strip()
         else:
-            # Only code on sales number line, description elsewhere
             data["Product Code"] = sales_content.strip()
 
             # Look for description after the sales number/tax line
@@ -87,14 +83,12 @@ def extract_packing_list(text):
             data["Bank Address"] = None
             data["Bank City"] = None
     else:
-        # Look for unlabeled bank details
-        # Find line with "Bank" (word boundary to ensure it's a complete word)
         bank_section = re.search(
-            r"\b([A-Z][^\n]*Bank)\s*\n"  # Bank name - must start with capital letter, end with "Bank"
-            r"([^\n]+)\s*\n"              # Line 1: Trade Operations Dept.
-            r"([^\n]+)\s*\n"              # Line 2: No 65C, Dharmapala Mawatha,
-            r"([^\n]+)\s*\n"              # Line 3: Colombo 7
-            r"([^\n]+)",                  # Line 4: Sri Lanka
+            r"\b([A-Z][^\n]*Bank)\s*\n"  
+            r"([^\n]+)\s*\n"             
+            r"([^\n]+)\s*\n"             
+            r"([^\n]+)\s*\n"            
+            r"([^\n]+)",                  
             text,
             re.IGNORECASE
         )
@@ -103,7 +97,7 @@ def extract_packing_list(text):
             data["Bank Name"] = bank_section.group(1).strip()
             # Address = Line 1 + Line 2
             data["Bank Address"] = bank_section.group(2).strip() + " " + bank_section.group(3).strip()
-            # City = Line 3 (Colombo 7)
+            # City = Line 3 
             data["Bank City"] = bank_section.group(4).strip()
         else:
             data["Bank Name"] = None
@@ -146,7 +140,7 @@ def extract_packing_list(text):
     transport_match = re.search(r"Mode of transport[:\s]*(.+?)(?=\s*\n|$)", text, re.IGNORECASE)
     if transport_match:
         transport_value = transport_match.group(1).strip()
-        # Only assign if there's actual content (not just whitespace)
+
         if transport_value and not transport_value.startswith(("Import", "NÂ°", "N°")):
             data["Transport Mode"] = transport_value
         else:
